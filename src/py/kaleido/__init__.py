@@ -7,7 +7,7 @@ import sys
 import os
 
 import async_timeout as atimeout
-
+import logistro as logging
 from choreographer import Browser
 
 
@@ -22,29 +22,33 @@ _scope_flags_ = ("plotlyjs", "mathjax", "topojson", "mapbox_access_token")
 def to_image_block(spec, f=None, topojson=None, mapbox_token=None, debug=None, tmp_path=None):
     if debug is None:
         debug = "KALEIDO-DEBUG" in os.environ or "KALEIDO_DEBUG" in os.environ
+    if debug:
+        logging.logger.setLevel(logging.DEBUG2)
     try:
         _ = asyncio.get_running_loop()
-        if debug: print("Got running loop, threading", file=sys.stderr)
+        logging.debug1("Got running loop, threading")
         from threading import Thread
         image = None
         def get_image():
             nonlocal image
-            if debug: print("Calling to_image in thread", file=sys.stderr)
+            logging.debug1("Calling to_image in thread")
             image = asyncio.run(to_image(spec, f, topojson, mapbox_token, debug=debug, tmp_path=tmp_path))
         t = Thread(target=get_image)
-        if debug: print("Calling thread start", file=sys.stderr)
+        logging.debug1("Calling thread start")
         t.start()
         t.join()
-        if debug: print("Done with thread", file=sys.stderr)
+        logging.debug1("Done with thread")
         return image
     except RuntimeError:
-        if debug: print("No loop, no thread", file=sys.stderr)
+        logging.debug1("No loop, no thread")
         pass
     return asyncio.run(to_image(spec, f, topojson, mapbox_token, debug=debug, tmp_path=tmp_path))
 
 async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, timeout=60, tmp_path=None):
     if debug is None:
         debug = "KALEIDO-DEBUG" in os.environ or "KALEIDO_DEBUG" in os.environ
+    if debug:
+        logging.logger.setLevel(logging.DEBUG2)
     def check_error(res):
         if 'error' in res:
             raise RuntimeError(str(res))
@@ -57,25 +61,25 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
         if debug: browser.subscribe("*", print_all)
         if not f:
             f = script_path.absolute()
-        if debug: print(f"Creating tab w/ file: {f.as_uri()}", file=sys.stderr)
+        logging.debug1(f"Creating tab w/ file: {f.as_uri()}")
         tab = await browser.create_tab(f.as_uri())
 
         if debug: tab.subscribe("*", print_all)
-        if debug: print("Activating page", file=sys.stderr)
+        logging.debug1("Activating page")
         res = await tab.send_command("Page.bringToFront")
         check_error(res)
 
         page_loaded = tab.subscribe_once("Page.loadEventFired")
 
-        if debug: print("Enabling page", file=sys.stderr)
+        logging.debug1("Enabling page")
         res = await tab.send_command("Page.enable")
         check_error(res)
 
         while page_loaded.done():
-            print("Clearing previous loadEventFired", file=sys.stderr)
+            logging.info("Clearing previous loadEventFired")
             page_loaded = tab.subscribe_once("Page.loadEventFired")
 
-        if debug: print("About to reload page", file=sys.stderr)
+        logging.debug1("About to reload page")
         res = await tab.send_command("Page.reload")
         check_error(res)
 
@@ -83,14 +87,14 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
 
         javascript_enabled = tab.subscribe_once("Runtime.executionContextCreated")
         while javascript_enabled.done():
-            print("Clearing previous executionContextCreated", file=sys.stderr)
+            logging.info("Clearing previous executionContextCreated")
             javascript_enabled = tab.subscribe_once("Runtime.executionContextCreated")
 
-        if debug: print("Enabling runtime", file=sys.stderr)
+        logging.debug1("Enabling runtime")
         res = await tab.send_command("Runtime.enable")
         check_error(res)
 
-        if debug: print("Waiting executionContextCreated", file=sys.stderr)
+        logging.debug1("Waiting executionContextCreated")
 
         await javascript_enabled
         execution_context_id = javascript_enabled.result()["params"]["context"]["id"]
@@ -105,7 +109,7 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
                     functionDeclaration=debug_jsfn,
                     returnByValue=True,
                     executionContextId=execution_context_id)
-            print(await tab.send_command("Runtime.callFunctionOn", params=params), file=sys.stderr)
+            logging.debug1(await tab.send_command("Runtime.callFunctionOn", params=params))
 
 
 
@@ -125,7 +129,7 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
                 awaitPromise=True,
                 executionContextId=execution_context_id,
                 )
-        if debug: print("Sending command", file=sys.stderr)
+        logging.debug1("Sending command")
         response = await tab.send_command("Runtime.callFunctionOn", params=params)
         check_error(response)
         # Check for export error, later can customize error messages for plotly Python users
@@ -138,9 +142,9 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
                 )
             )
         try:
-            if debug: print("Loading result", file=sys.stderr)
+            logging.debug1("Loading result")
             js_response = json.loads(response.get("result").get("result").get("value"))
-            if debug: print(f"Received: {js_response}", file=sys.stderr)
+            logging.debug1(f"Received: {js_response}")
             response_format = js_response.get("format")
             img = js_response.get("result")
         except Exception as e:
@@ -152,7 +156,7 @@ async def to_image(spec, f=None, topojson=None, mapbox_token=None, debug=None, t
                           marginLeft=0,
                           marginRight=0,
                           preferCSSPageSize=True,)
-            if debug: print("Sending command to print pdf", file=sys.stderr)
+            logging.debug1("Sending command to print pdf")
             pdf_response = await tab.send_command("Page.printToPDF", params=pdf_params)
             check_error(pdf_response)
             img = pdf_response.get("result").get("data")

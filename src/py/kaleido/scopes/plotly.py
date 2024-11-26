@@ -5,7 +5,7 @@ import tempfile
 
 from plotly.graph_objects import Figure
 
-import kaleido # kaleido __init__.py, dislike
+from kaleido.__init__ import to_image_block, _all_formats_
 import logistro as logging
 from choreographer import which_browser
 
@@ -23,10 +23,6 @@ class PlotlyScope():
     """
     Scope for transforming Plotly figures to static images
     """
-    _all_formats = kaleido._all_formats_
-    _text_formats = kaleido._text_formats_
-
-    _scope_flags = kaleido._scope_flags_
 
 
     def __init__(self, plotlyjs=None, mathjax=None, topojson=None, mapbox_access_token=None, debug=None, tmp_path=None, **kwargs):
@@ -180,8 +176,8 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         if format == 'jpg':
             format = 'jpeg'
 
-        if format not in self._all_formats:
-            supported_formats_str = repr(list(self._all_formats))
+        if format not in _all_formats_:
+            supported_formats_str = repr(list(_all_formats_))
             raise ValueError(
                 "Invalid format '{original_format}'.\n"
                 "    Supported formats: {supported_formats_str}"
@@ -234,7 +230,7 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         # Write to process and read result within a lock so that can be
         # sure we're reading the response to our request
         with _proc_lock:
-            img = kaleido.to_image_block(spec, Path(self._tempfile.name).absolute(), self._topojson, self._mapbox_access_token, debug=debug, tmp_path=self._tmp_path)
+            img = to_image_block(spec, Path(self._tempfile.name).absolute(), self._topojson, self._mapbox_access_token, debug=debug, tmp_path=self._tmp_path)
 
         return img
 

@@ -1,6 +1,8 @@
 import os
 import sys
 import shutil
+
+
 _all_formats = ("png", "jpg", "jpeg", "webp", "svg", "pdf", "json")
 dirname="./test-results/"
 os.makedirs(dirname, exist_ok=True)
@@ -60,7 +62,7 @@ with open(dirname+"log.log", 'w') as sys.stderr:
 
 
     import kaleido
-    from kaleido.scopes.plotly import PlotlyScope
+
     async def test_with_async():
         for extension in _all_formats:
             try:

@@ -5,7 +5,7 @@ import tempfile
 
 from plotly.graph_objects import Figure
 
-from kaleido.__init__ import to_image_block, _all_formats_
+import kaleido
 import logistro as logging
 from choreographer import which_browser
 
@@ -176,8 +176,8 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         if format == 'jpg':
             format = 'jpeg'
 
-        if format not in _all_formats_:
-            supported_formats_str = repr(list(_all_formats_))
+        if format not in kaleido._all_formats_:
+            supported_formats_str = repr(list(kaleido._all_formats_))
             raise ValueError(
                 "Invalid format '{original_format}'.\n"
                 "    Supported formats: {supported_formats_str}"
@@ -230,7 +230,7 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         # Write to process and read result within a lock so that can be
         # sure we're reading the response to our request
         with _proc_lock:
-            img = to_image_block(spec, Path(self._tempfile.name).absolute(), self._topojson, self._mapbox_access_token, debug=debug, tmp_path=self._tmp_path)
+            img = kaleido.to_image_block(spec, Path(self._tempfile.name).absolute(), self._topojson, self._mapbox_access_token, debug=debug, tmp_path=self._tmp_path)
 
         return img
 

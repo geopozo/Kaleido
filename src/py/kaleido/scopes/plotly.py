@@ -2,11 +2,11 @@ from __future__ import absolute_import
 import os
 from pathlib import Path
 import tempfile
-import sys
 
 from plotly.graph_objects import Figure
 
-import kaleido # kaleido __init__.py, dislike
+import kaleido
+import logistro as logging
 from choreographer import which_browser
 
 # The original kaleido provided a global lock (instead of supporting concurrency)
@@ -23,16 +23,14 @@ class PlotlyScope():
     """
     Scope for transforming Plotly figures to static images
     """
-    _all_formats = kaleido._all_formats_
-    _text_formats = kaleido._text_formats_
-
-    _scope_flags = kaleido._scope_flags_
 
 
     def __init__(self, plotlyjs=None, mathjax=None, topojson=None, mapbox_access_token=None, debug=None, tmp_path=None, **kwargs):
         if debug is None:
             debug = "KALEIDO-DEBUG" in os.environ or "KALEIDO_DEBUG" in os.environ
         self.debug=debug
+        if self.debug:
+            logging.logger.setLevel(logging.DEBUG2)
         if tmp_path is None:
             tmp_path = os.environ.get("KALEIDO_TMP_PATH", None)
         self._tmp_path = tmp_path
@@ -65,15 +63,14 @@ class PlotlyScope():
             temp_args = dict(dir=self.tmp_path)
         elif "snap" in path:
             temp_path = Path.home()
-            if self.debug:
-                print("Snap detected, moving tmp directory to home", file=sys.stderr)
+            logging.debug1("Snap detected, moving tmp directory to home")
             temp_args = dict(prefix=".kaleido-", dir=temp_path)
         else:
             self._snap = False
             temp_args = {}
 
         self._tempdir = tempfile.TemporaryDirectory(**temp_args)
-        if self.debug: print(f"Tempdir: {self._tempdir.name}", file=sys.stderr)
+        logging.debug1(f"Tempdir: {self._tempdir.name}")
         self._tempfile = open(f"{self._tempdir.name}/index.html", "w")
         self._tempfile.write(self.make_page_string())
         self._tempfile.close()
@@ -137,10 +134,9 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
 """  </head>
   <body style=\"{margin: 0; padding: 0;}\"><img id=\"kaleido-image\"><img></body>
 </html>"""
-        if self.debug:
-            print("Displaying generated HTML".center(50, "*"), file=sys.stderr)
-            print(page, file=sys.stderr)
-            print("end".center(50, "*"), file=sys.stderr)
+        logging.debug1("Displaying generated HTML".center(50, "*"))
+        logging.debug1(page)
+        logging.debug1("end".center(50, "*"))
         return page
 
     @property
@@ -180,8 +176,8 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         if format == 'jpg':
             format = 'jpeg'
 
-        if format not in self._all_formats:
-            supported_formats_str = repr(list(self._all_formats))
+        if format not in kaleido._all_formats_:
+            supported_formats_str = repr(list(kaleido._all_formats_))
             raise ValueError(
                 "Invalid format '{original_format}'.\n"
                 "    Supported formats: {supported_formats_str}"
@@ -227,6 +223,8 @@ f"""    <script src="{Path(self._plotlyfier).absolute().as_uri()}" onerror=\"log
         """
         if not debug:
             debug=self.debug
+        if debug:
+            logging.logger.setLevel(logging.DEBUG2)
         spec = self.make_spec(figure, format=format, width=width, height=height, scale=scale)
 
         # Write to process and read result within a lock so that can be

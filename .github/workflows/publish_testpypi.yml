@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/kaleido
+      url: https://test.pypi.org/p/kaleido_test
     # Signs this workflow so pypi trusts it
     permissions:
       id-token: write
@@ -99,3 +99,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/.
+          packages-dir: src/py/dist
+          verbose: true
